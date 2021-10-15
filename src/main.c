@@ -1,3 +1,5 @@
+#include "parser.h"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -24,110 +26,6 @@ struct operand_encoding {
 
 	int duplicate;
 };
-
-enum reg {
-	REG_RAX = 0,
-	REG_RCX,
-	REG_RDX,
-	REG_RBX,
-	REG_RSP,
-	REG_RBP,
-	REG_RSI,
-	REG_RDI,
-	REG_R8,
-	REG_R9,
-	REG_R10,
-	REG_R11,
-	REG_R12,
-	REG_R13,
-	REG_R14,
-	REG_R15,
-
-	REG_NONE,
-
-	REG_MAX
-};
-
-void str_to_reg(const char *str, enum reg *reg, int *size, int *requires_rex) {
-	if (requires_rex)
-		*requires_rex = 0;
-	if (strcmp(str, "rax") == 0) { *reg = REG_RAX; *size = 8; return; }
-	if (strcmp(str, "rcx") == 0) { *reg = REG_RCX; *size = 8; return; }
-	if (strcmp(str, "rdx") == 0) { *reg = REG_RDX; *size = 8; return; }
-	if (strcmp(str, "rbx") == 0) { *reg = REG_RBX; *size = 8; return; }
-	if (strcmp(str, "rsp") == 0) { *reg = REG_RSP; *size = 8; return; }
-	if (strcmp(str, "rbp") == 0) { *reg = REG_RBP; *size = 8; return; }
-	if (strcmp(str, "rsi") == 0) { *reg = REG_RSI; *size = 8; return; }
-	if (strcmp(str, "rdi") == 0) { *reg = REG_RDI; *size = 8; return; }
-	if (strcmp(str, "r8") == 0) { *reg = REG_R8; *size = 8; return; }
-	if (strcmp(str, "r9") == 0) { *reg = REG_R9; *size = 8; return; }
-	if (strcmp(str, "r10") == 0) { *reg = REG_R10; *size = 8; return; }
-	if (strcmp(str, "r11") == 0) { *reg = REG_R11; *size = 8; return; }
-	if (strcmp(str, "r12") == 0) { *reg = REG_R12; *size = 8; return; }
-	if (strcmp(str, "r13") == 0) { *reg = REG_R13; *size = 8; return; }
-	if (strcmp(str, "r14") == 0) { *reg = REG_R14; *size = 8; return; }
-	if (strcmp(str, "r15") == 0) { *reg = REG_R15; *size = 8; return; }
-
-	if (!requires_rex)
-		ERROR("Invalid register %s", str);
-
-	if (strcmp(str, "eax") == 0) { *reg = REG_RAX; *size = 4; return; }
-	if (strcmp(str, "ecx") == 0) { *reg = REG_RCX; *size = 4; return; }
-	if (strcmp(str, "edx") == 0) { *reg = REG_RDX; *size = 4; return; }
-	if (strcmp(str, "ebx") == 0) { *reg = REG_RBX; *size = 4; return; }
-	if (strcmp(str, "esp") == 0) { *reg = REG_RSP; *size = 4; return; }
-	if (strcmp(str, "ebp") == 0) { *reg = REG_RBP; *size = 4; return; }
-	if (strcmp(str, "esi") == 0) { *reg = REG_RSI; *size = 4; return; }
-	if (strcmp(str, "edi") == 0) { *reg = REG_RDI; *size = 4; return; }
-	if (strcmp(str, "r8d") == 0) { *reg = REG_R8; *size = 4; return; }
-	if (strcmp(str, "r9d") == 0) { *reg = REG_R9; *size = 4; return; }
-	if (strcmp(str, "r10d") == 0) { *reg = REG_R10; *size = 4; return; }
-	if (strcmp(str, "r11d") == 0) { *reg = REG_R11; *size = 4; return; }
-	if (strcmp(str, "r12d") == 0) { *reg = REG_R12; *size = 4; return; }
-	if (strcmp(str, "r13d") == 0) { *reg = REG_R13; *size = 4; return; }
-	if (strcmp(str, "r14d") == 0) { *reg = REG_R14; *size = 4; return; }
-	if (strcmp(str, "r15d") == 0) { *reg = REG_R15; *size = 4; return; }
-
-	if (strcmp(str, "ax") == 0) { *reg = REG_RAX; *size = 2; return; }
-	if (strcmp(str, "cx") == 0) { *reg = REG_RCX; *size = 2; return; }
-	if (strcmp(str, "dx") == 0) { *reg = REG_RDX; *size = 2; return; }
-	if (strcmp(str, "bx") == 0) { *reg = REG_RBX; *size = 2; return; }
-	if (strcmp(str, "sp") == 0) { *reg = REG_RSP; *size = 2; return; }
-	if (strcmp(str, "bp") == 0) { *reg = REG_RBP; *size = 2; return; }
-	if (strcmp(str, "si") == 0) { *reg = REG_RSI; *size = 2; return; }
-	if (strcmp(str, "di") == 0) { *reg = REG_RDI; *size = 2; return; }
-	if (strcmp(str, "r8w") == 0) { *reg = REG_R8; *size = 2; return; }
-	if (strcmp(str, "r9w") == 0) { *reg = REG_R9; *size = 2; return; }
-	if (strcmp(str, "r10w") == 0) { *reg = REG_R10; *size = 2; return; }
-	if (strcmp(str, "r11w") == 0) { *reg = REG_R11; *size = 2; return; }
-	if (strcmp(str, "r12w") == 0) { *reg = REG_R12; *size = 2; return; }
-	if (strcmp(str, "r13w") == 0) { *reg = REG_R13; *size = 2; return; }
-	if (strcmp(str, "r14w") == 0) { *reg = REG_R14; *size = 2; return; }
-	if (strcmp(str, "r15w") == 0) { *reg = REG_R15; *size = 2; return; }
-
-	if (strcmp(str, "al") == 0) { *reg = REG_RAX; *size = 1; return; }
-	if (strcmp(str, "cl") == 0) { *reg = REG_RCX; *size = 1; return; }
-	if (strcmp(str, "dl") == 0) { *reg = REG_RDX; *size = 1; return; }
-	if (strcmp(str, "bl") == 0) { *reg = REG_RBX; *size = 1; return; }
-	/* if (strcmp(str, "ah") == 0) { *reg = REG_RSP; *size = 1; return; } */
-	/* if (strcmp(str, "ch") == 0) { *reg = REG_RBP; *size = 1; return; } */
-	/* if (strcmp(str, "dh") == 0) { *reg = REG_RSI; *size = 1; return; } */
-	/* if (strcmp(str, "bh") == 0) { *reg = REG_RDI; *size = 1; return; } */
-	if (strcmp(str, "spl") == 0) { *reg = REG_RSP; *size = 1; *requires_rex = 1; return; }
-	if (strcmp(str, "bpl") == 0) { *reg = REG_RBP; *size = 1; *requires_rex = 1; return; }
-	if (strcmp(str, "sil") == 0) { *reg = REG_RSI; *size = 1; *requires_rex = 1; return; }
-	if (strcmp(str, "dil") == 0) { *reg = REG_RDI; *size = 1; *requires_rex = 1; return; }
-
-	if (strcmp(str, "r8l") == 0) { *reg = REG_R8; *size = 1; return; }
-	if (strcmp(str, "r9l") == 0) { *reg = REG_R9; *size = 1; return; }
-	if (strcmp(str, "r10l") == 0) { *reg = REG_R10; *size = 1; return; }
-	if (strcmp(str, "r11l") == 0) { *reg = REG_R11; *size = 1; return; }
-	if (strcmp(str, "r12l") == 0) { *reg = REG_R12; *size = 1; return; }
-	if (strcmp(str, "r13l") == 0) { *reg = REG_R13; *size = 1; return; }
-	if (strcmp(str, "r14l") == 0) { *reg = REG_R14; *size = 1; return; }
-	if (strcmp(str, "r15l") == 0) { *reg = REG_R15; *size = 1; return; }
-	ERROR("Invalid reg string %s", str);
-}
 
 struct operand_accepts {
 	enum {
@@ -176,32 +74,6 @@ struct encoding {
 	struct operand_accepts operand_accepts[4];
 };
 
-struct operand {
-	enum {
-		O_EMPTY,
-		O_REG,
-		O_REG_STAR,
-		O_IMM,
-		O_SIB
-	} type;
-
-	union {
-		struct {
-			int size;
-			int requires_rex;
-			enum reg reg;
-		} reg;
-
-		struct  {
-			enum reg index, base;
-			int scale;
-			uint64_t offset;
-		} sib;
-
-		uint64_t imm;
-	};
-};
-
 int get_disp_size(uint64_t disp_u) {
 	long disp = disp_u;
 	if (disp == 0)
@@ -210,7 +82,8 @@ int get_disp_size(uint64_t disp_u) {
 		return 1;
 	if (disp >= INT32_MIN && disp <= INT32_MAX)
 		return 4;
-	ERROR("Invalid displacement size");
+	parse_send_error("Error! Invalid displacement size");
+	ERROR("Invalid displacement size %ld", disp);
 }
 
 #define MR {{OE_MODRM_RM}, {OE_MODRM_REG}}
@@ -430,7 +303,8 @@ void encode_sib(struct operand *o, int *rex_b, int *rex_x, int *modrm_mod, int *
 			*rex_x = (o->sib.index & 0x8) >> 3;
 		}
 	} else {
-		NOTIMP();
+		parse_send_error("Not implemented");
+		ERROR("Params: %d (%d, %d, %d)", disp_size, o->sib.base, o->sib.index, o->sib.scale);
 	}
 
 	// disp8(%base, %scale, index)
@@ -471,7 +345,7 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 		if ((o->type == O_EMPTY) != (oe->type == OE_EMPTY))
 			ERROR("Invalid number of arguments to instruction");
 
-		if (o->type == O_REG && o->reg.requires_rex)
+		if (o->type == O_REG && o->reg.rex == 1)
 			has_rex = 1;
 
 		switch (oe->type) {
@@ -756,131 +630,10 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 	if (best_len == 16) {
 		*len = -1;
 		return;
-		//ERROR("No match for instruction");
-		//NOTIMP();
 	}
 
 	*len = best_len;
 	memcpy(output, best_output, sizeof (best_output));
-}
-
-void parse_operand(const char *str, struct operand *op) {
-	if (*str == '$') {
-		uint64_t imm = 0;
-		if (str[1] == '-') {
-			imm = strtol(str + 1, NULL, 10);
-		} else {
-			imm = strtoul(str + 1, NULL, 10);
-		}
-		op->type = O_IMM;
-		op->imm = imm;
-	} else if (*str == '%') {
-		op->type = O_REG;
-		str_to_reg(str + 1, &op->reg.reg, &op->reg.size, &op->reg.requires_rex);
-	} else if (str[0] == '*' && str[1] == '%') {
-		op->type = O_REG_STAR;
-		str_to_reg(str + 2, &op->reg.reg, &op->reg.size, &op->reg.requires_rex);
-	} else if (str[0] == '-' || str[0] == '+' || isdigit(str[0]) || str[0] == '(') {
-		op->type = O_SIB;
-		op->sib.index = REG_NONE;
-		op->sib.scale = 1;
-		int idx = 0;
-		if (str[0] != '(') {
-			char offset_str[100];
-			for (; *str; str++) {
-				if (!isdigit(str[0]) && str[0] != '+' && str[0] != '-')
-					break;
-				offset_str[idx++] = *str;
-			}
-			offset_str[idx] = '\0';
-
-			uint64_t offset = strtol(offset_str, NULL, 10);
-			op->sib.offset = offset;
-		} else {
-			op->sib.offset = 0;
-		}
-		if (*str != '(')
-			NOTIMP();
-		str++;
-
-		char reg[10];
-		idx = 0;
-		for (; *str; str++) {
-			if (*str == ',' || *str == ')')
-				break;
-			reg[idx++] = *str;
-		}
-		reg[idx] = '\0';
-		int size;
-		str_to_reg(reg + 1, &op->sib.base, &size, NULL);
-
-		if (*str == ',') {
-			idx = 0;
-			str++;
-			for (; *str; str++) {
-				if (*str == ',' || *str == ')')
-					break;
-				reg[idx++] = *str;
-			}
-			reg[idx] = '\0';
-
-			str_to_reg(reg + 1, &op->sib.index, &size, NULL);
-
-			if (*str == ',')
-				NOTIMP();
-		} else if (*str != ')') {
-			ERROR("hmm: %s", str);
-		}
-	} else {
-		NOTIMP();
-	}
-}
-
-void flush_whitespace(const char **str) {
-	while (isspace(**str)) {
-		(*str)++;
-	}
-}
-
-void parse_instruction(const char *str, const char **mnemonic, struct operand ops[4]) {
-	flush_whitespace(&str);
-	char mnemonic_buffer[32];
-	int i = 0;
-	for (; *str; i++, str++) {
-		if (isspace(*str))
-			break;
-		mnemonic_buffer[i] = *str;
-	}
-	mnemonic_buffer[i] = '\0';
-
-	*mnemonic = strdup(mnemonic_buffer);
-
-	int curr_op = 0;
-	for (; *str; str++) {
-		flush_whitespace(&str);
-		int idx = 0;
-		char arg_buffer[100];
-
-		int in_paren = 0;
-		for (; *str; str++) {
-			if (!in_paren && *str == ',')
-				break;
-			if (*str == '(')
-				in_paren = 1;
-			else if (*str == ')')
-				in_paren = 0;
-			arg_buffer[idx++] = *str;
-		}
-		arg_buffer[idx] = '\0';
-
-		parse_operand(arg_buffer, ops + curr_op++);
-		if (!*str)
-			break;
-	}
-
-	for (; curr_op < 4; curr_op++) {
-		ops[curr_op].type = O_EMPTY;
-	}
 }
 
 // Flip order of operands, and ignore empty on the end.
@@ -900,63 +653,41 @@ void flip_order(struct operand ops[4]) {
 	memcpy(ops, out, sizeof out);
 }
 
-struct test_data {
-	const char *instruction;
-	int output_len;
-	uint8_t output[15];
-};
-
-#include "../test_data.h"
-
 int main(int argc, char **argv) {
-	(void)argc, (void)argv;
-	uint8_t output[15] = { 0 };
-	int len;
+	const char *input = NULL, *output = NULL;
+	if (argc != 3)
+		ERROR("Invalid number of arguments");
+	input = argv[1];
+	output = argv[2];
 
-	struct operand ops[4];
-	const char *mnemonic;
+	parse_init(input);
 
-	int all_match = 1;
-	for (unsigned i = 0; i < sizeof test_data / sizeof *test_data; i++) {
-		//printf("Currently testing %s\n", test_data[i].instruction);
-		parse_instruction(test_data[i].instruction, &mnemonic, ops);
-		flip_order(ops);
+	FILE *output_file = fopen(output, "wb");
+	for (;;) {
+		struct instruction instruction;
+		if (parse_instruction(&instruction)) {
+			flip_order(instruction.operands);
 
-		assemble_instruction(output, &len, mnemonic, ops);
+			uint8_t output[15] = { 0 };
+			int len;
+			assemble_instruction(output, &len, instruction.mnemonic,
+								 instruction.operands);
 
-		int matches = 1;
-		if (len != test_data[i].output_len) {
-			matches = 0;
+			if (len <= 0) {
+				parse_send_error("no match for instruction");
+				ERROR("Shoud not be here");
+			}
+
+			if (fwrite(output, len, 1, output_file) != 1)
+				ERROR("Can't write");
+		} else if (parse_is_eof()) {
+			break;
 		} else {
-			for (int j = 0; j < len; j++) {
-				if (output[j] != test_data[i].output[j]) {
-					matches = 0;
-					break;
-				}
-			}
-		}
-
-		if (!matches) {
-			printf("Didn't match!!!!\n");
-
-			printf("%s\n", test_data[i].instruction);
-			printf("Got: \n");
-			for (int j = 0; j < len; j++) {
-				printf("%02x ", output[j]);
-			}
-			printf("\n");
-			printf("Expected: \n");
-			for (int j = 0; j < test_data[i].output_len; j++) {
-				printf("%02x ", test_data[i].output[j]);
-			}
-			printf("\n");
-
-			all_match = 0;
-
-			return 1;
+			parse_expect_empty_line();
 		}
 	}
 
-	if (all_match)
-		printf("All matched! Good job!\n");
+	fclose(output_file);
+
+	parse_close();
 }
