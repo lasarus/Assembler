@@ -133,6 +133,7 @@ struct operand_accepts {
 	enum {
 		ACC_EMPTY,
 		ACC_RAX,
+		ACC_RCX,
 		ACC_REG,
 		ACC_REG_STAR,
 		ACC_IMM8_S,
@@ -161,6 +162,7 @@ struct operand_accepts {
 #define A_MODRM(SIZE) {.type = ACC_MODRM, .reg.size = SIZE }
 #define A_REG_STAR(SIZE) {.type = ACC_REG_STAR, .reg.size = SIZE }
 #define A_RAX(SIZE) {.type = ACC_RAX, .reg.size = SIZE }
+#define A_RCX(SIZE) {.type = ACC_RCX, .reg.size = SIZE }
 
 struct encoding {
 	const char *mnemonic;
@@ -223,29 +225,44 @@ struct encoding encodings[] = {
 	{"subq", 0x83, .rex = 1, .rexw = 1, .modrm_extension = 5, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM8}}, .operand_accepts = {A_MODRM(8), A_IMM8_S}},
 	{"subq", 0x81, .rex = 1, .rexw = 1, .modrm_extension = 5, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM32}}, .operand_accepts = {A_MODRM(8), A_IMM32_S}},
 	{"subq", 0x29, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(8), A_REG(8)}},
+	{"subl", 0x29, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(4), A_REG(4)}},
 
 	{"andl", 0x21, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(4), A_REG(4)}},
 	{"andq", 0x21, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(8), A_REG(8)}},
 	{"andq", 0x83, .rex = 1, .rexw = 1, .modrm_extension = 4, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM8}}, .operand_accepts = {A_REG(8), A_IMM8_S}},
 
+	{"orl", 0x09, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(4), A_REG(4)}},
+	{"orq", 0x09, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(8), A_REG(8)}},
+
 	{"xor", 0x31, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(8), A_REG(8)}},
+	{"xorq", 0x31, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(8), A_REG(8)}},
 	{"xorl", 0x31, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_REG(4), A_REG(4)}},
 
 	{"divl", 0xf7, .modrm_extension = 6, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(4)}},
+	{"divq", 0xf7, .rexw = 1, .modrm_extension = 6, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(8)}},
+
+	{"idivl", 0xf7, .modrm_extension = 7, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(4)}},
+	{"idivq", 0xf7, .rexw = 1, .modrm_extension = 7, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(8)}},
 
 	{"imulq", 0x69, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM, 1}, {OE_MODRM_REG}, {OE_IMM32}}, .operand_accepts = {A_REG(8), A_IMM32_S}},
 	{"imulq", 0x6b, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM, 1}, {OE_MODRM_REG}, {OE_IMM8}}, .operand_accepts = {A_REG(8), A_IMM8_S}},
 	{"imulq", 0x0f, .op2 = 0xaf, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(8), A_MODRM(8)}},
 
+	{"imull", 0x0f, .op2 = 0xaf, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(4)}},
+
 	{"callq", 0xff, .modrm_extension = 2, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_REG_STAR(8)}},
 	{ "cltd", .opcode = 0x99 },
+	{ "cqto", .rexw = 1, .opcode = 0x99 },
 	{ "leave", .opcode = 0xc9 },
+	{ "ret", .opcode = 0xc3 },
+	{ "ud2", .opcode = 0x0f, .op2 = 0x0b },
 
 	{"cmpl", 0x39, .slash_r = 1, .operand_encoding = MR, .operand_accepts = {A_REG(4), A_REG(4)}},
 	{"cmpq", 0x39, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = MR, .operand_accepts = {A_MODRM(8), A_REG(8)}},
 
 	{"cmpl", 0x83, .modrm_extension = 7, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM8}}, .operand_accepts = {A_REG(4), A_IMM8_S}},
 
+	{"movl", 0xb8, .modrm_extension = 0, .operand_encoding = {{OE_OPEXT}, {OE_IMM32}}, .operand_accepts = {A_REG(4), A_IMM32}},
 	{"movl", 0xc7, .modrm_extension = 0, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM32}}, .operand_accepts = {A_MODRM(4), A_IMM32}},
 	{"movl", 0xc7, .modrm_extension = 0, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM32}}, .operand_accepts = {A_MODRM(4), A_IMM32_S}},
 	{"movl", 0x89, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(4), A_REG(4)}},
@@ -263,14 +280,50 @@ struct encoding encodings[] = {
 	{"movabsq", 0xb8, .rex = 1, .rexw = 1, .operand_encoding = {{OE_OPEXT}, {OE_IMM64}}, .operand_accepts = {A_REG(8), A_IMM64}},
 
 	{"leaq", 0x8d, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(8), A_MODRM(8)}},
+	{"leal", 0x8d, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(4)}},
+
+	{"movswl", 0x0f, .op2 = 0xbf, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(2)}},
+	{"movswq", 0x0f, .rexw = 1, .op2 = 0xbf, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(8), A_MODRM(2)}},
+	{"movslq", 0x63, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(8), A_MODRM(4)}},
+	{"movsbl", 0x0f, .op2 = 0xbe, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(1)}},
+	{"movsbw", 0x0f, .op_size_prefix = 1, .op2 = 0xbe, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(2), A_MODRM(1)}},
+	{"movsbq", 0x0f, .rexw = 1, .op2 = 0xbe, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(8), A_MODRM(1)}},
 
 	{"movzwl", 0x0f, .op2 = 0xb7, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(2)}},
+	{"movzbl", 0x0f, .op2 = 0xb6, .slash_r = 1, .operand_encoding = {{OE_MODRM_REG}, {OE_MODRM_RM}}, .operand_accepts = {A_REG(4), A_MODRM(1)}},
 
 	{"pushq", 0x50, .operand_encoding = {{OE_OPEXT}}, .operand_accepts = {A_REG(8)}},
 
+	{"notl", 0xf7, .modrm_extension = 2, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(4)}},
 	{"notq", 0xf7, .rex = 1, .rexw = 1, .modrm_extension = 2, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(8)}},
 
+	{"negl", 0xf7, .modrm_extension = 3, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(4)}},
+	{"negq", 0xf7, .rexw = 1, .modrm_extension = 3, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(8)}},
+
 	{"seta", 0x0f, .op2 = 0x97, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setb", 0x0f, .op2 = 0x92, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setbe", 0x0f, .op2 = 0x96, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"sete", 0x0f, .op2 = 0x94, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setg", 0x0f, .op2 = 0x9f, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setge", 0x0f, .op2 = 0x9d, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setgl", 0x0f, .op2 = 0x9c, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setl", 0x0f, .op2 = 0x9c, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setle", 0x0f, .op2 = 0x9e, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setnb", 0x0f, .op2 = 0x93, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	{"setne", 0x0f, .op2 = 0x95, .operand_encoding = {{OE_MODRM_RM}}, .operand_accepts = {A_MODRM(1)}},
+	
+	{"salq", 0xd3, .rex = 1, .rexw = 1, .modrm_extension = 4, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(8), A_RCX(1)}},
+	{"sall", 0xd3, .modrm_extension = 4, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(4), A_RCX(1)}},
+
+	{"sarl", 0xd3, .modrm_extension = 7, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(4), A_RCX(1)}},
+	{"sarq", 0xd3, .rexw = 1, .modrm_extension = 7, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(8), A_RCX(1)}},
+
+	{"shrl", 0xd3, .modrm_extension = 5, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(4), A_RCX(1)}},
+	{"shrq", 0xd3, .rexw = 1, .modrm_extension = 5, .operand_encoding = {{OE_MODRM_RM}, {OE_NONE}}, .operand_accepts = {A_MODRM(8), A_RCX(1)}},
+
+	{"testb", 0x84, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(1), A_REG(1)}},
+	{"testl", 0x85, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(4), A_REG(4)}},
+	{"testq", 0x85, .rexw = 1, .slash_r = 1, .operand_encoding = {{OE_MODRM_RM}, {OE_MODRM_REG}}, .operand_accepts = {A_MODRM(8), A_REG(8)}},
 };
 
 // has_sib[%base][%index] = (%scale
@@ -391,7 +444,7 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 	uint64_t imm = 0;
 	//uint8_t imm8 = 0;
 
-	int has_rex = encoding->rexw;
+	int has_rex = encoding->rexw || encoding->rex;
 	int rex_b = 0;
 	int rex_r = 0;
 	int rex_x = 0;
@@ -473,8 +526,7 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 			case O_REG:
 				assert(encoding->slash_r);
 				modrm_reg = o->reg.reg;
-				if (has_rex)
-					rex_r = (modrm_reg & 0x8) >> 3;
+				rex_r = (modrm_reg & 0x8) >> 3;
 				break;
 			default:
 				ERROR("Not imp: %d\n", o->type);
@@ -497,6 +549,10 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 
 		if (oe->duplicate)
 			i--;
+	}
+
+	if (rex_b || rex_r) {
+		has_rex = 1;
 	}
 
 	int idx = 0;
@@ -577,6 +633,15 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 		if (o->reg.size != oa->reg.size)
 			return 0;
 		if (o->reg.reg != REG_RAX)
+			return 0;
+		break;
+
+	case ACC_RCX:
+		if (o->type != O_REG)
+			return 0;
+		if (o->reg.size != oa->reg.size)
+			return 0;
+		if (o->reg.reg != REG_RCX)
 			return 0;
 		break;
 
@@ -701,10 +766,14 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 
 void parse_operand(const char *str, struct operand *op) {
 	if (*str == '$') {
-		long int imm = strtol(str + 1, NULL, 10);
+		uint64_t imm = 0;
+		if (str[1] == '-') {
+			imm = strtol(str + 1, NULL, 10);
+		} else {
+			imm = strtoul(str + 1, NULL, 10);
+		}
 		op->type = O_IMM;
 		op->imm = imm;
-		printf("IMM: %ld\n", imm);
 	} else if (*str == '%') {
 		op->type = O_REG;
 		str_to_reg(str + 1, &op->reg.reg, &op->reg.size, &op->reg.requires_rex);
@@ -726,7 +795,6 @@ void parse_operand(const char *str, struct operand *op) {
 			offset_str[idx] = '\0';
 
 			uint64_t offset = strtol(offset_str, NULL, 10);
-			printf("OFfset: %ld\n", offset);
 			op->sib.offset = offset;
 		} else {
 			op->sib.offset = 0;
@@ -743,7 +811,6 @@ void parse_operand(const char *str, struct operand *op) {
 			reg[idx++] = *str;
 		}
 		reg[idx] = '\0';
-		printf("First reg: %s\n", reg);
 		int size;
 		str_to_reg(reg + 1, &op->sib.base, &size, NULL);
 
@@ -756,7 +823,6 @@ void parse_operand(const char *str, struct operand *op) {
 				reg[idx++] = *str;
 			}
 			reg[idx] = '\0';
-			printf("Got reg: %s\n", reg);
 
 			str_to_reg(reg + 1, &op->sib.index, &size, NULL);
 
@@ -787,7 +853,6 @@ void parse_instruction(const char *str, const char **mnemonic, struct operand op
 	}
 	mnemonic_buffer[i] = '\0';
 
-	//printf("Mnemonic: %s\n", mnemonic_buffer);
 	*mnemonic = strdup(mnemonic_buffer);
 
 	int curr_op = 0;
@@ -853,7 +918,7 @@ int main(int argc, char **argv) {
 
 	int all_match = 1;
 	for (unsigned i = 0; i < sizeof test_data / sizeof *test_data; i++) {
-		printf("Currently testing %s\n", test_data[i].instruction);
+		//printf("Currently testing %s\n", test_data[i].instruction);
 		parse_instruction(test_data[i].instruction, &mnemonic, ops);
 		flip_order(ops);
 
@@ -894,16 +959,4 @@ int main(int argc, char **argv) {
 
 	if (all_match)
 		printf("All matched! Good job!\n");
-
-	//assemble_instruction(output, &len, &add, (struct operand[4]) { {O_REG, .reg.size = 8, .reg.reg = REG_RAX}, {O_IMM, .imm = 0} });
-	//assemble_instruction(output, &len, &add2, (struct operand[4]) { {O_REG, .reg.size = 8, .reg.reg = REG_RAX}, {O_IMM, .imm = 40} });
-	//assemble_instruction(output, &len, &add3, (struct operand[4]) { {O_REG, .reg.size = 8, .reg.reg = REG_RSI}, {O_REG, .reg.size = 8, .reg.reg = REG_RAX} });
-	// assemble_instruction(output, &len, &and1, (struct operand[4]) { {O_REG, .reg.size = 4, .reg.reg = REG_RAX}, {O_REG, .reg.size = 4, .reg.reg = REG_RSI} });
-	//assemble_instruction(output, &len, &and2, (struct operand[4]) { {O_REG, .reg.size = 8, .reg.reg = REG_RAX}, {O_REG, .reg.size = 8, .reg.reg = REG_RSI} });
-	//assemble_instruction(output, &len, &and3, (struct operand[4]) { {O_REG, .reg.size = 8, .reg.reg = REG_RSP}, {O_IMM, .imm = -16} });
-	//assemble_instruction(output, &len, &call1, (struct operand[4]) { {O_REG_STAR, .reg.size = 8, .reg.reg = REG_RBX} });
-	//assemble_instruction(output, &len, &cltd, (struct operand[4]) { 0 });
-	//assemble_instruction(output, &len, &cmp1, (struct operand[4]) { {O_REG, .reg.size = 4, .reg.reg = REG_RDI}, {O_REG, .reg.size = 4, .reg.reg = REG_RSI} });
-	// assemble_instruction(output, &len, &cmp2, (struct operand[4]) { {O_REG, .reg.size = 4, .reg.reg = REG_RDI}, {O_IMM, .imm = -1 } });
-
 }
