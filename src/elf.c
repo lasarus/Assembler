@@ -337,7 +337,6 @@ static void write_section_headers(void) {
 
 		write_skip(section->header.sh_offset);
 		write(section->data, section->size);
-		printf("Wrote %lu to %lu (%d)\n", section->size, section->header.sh_offset, i);
 	}
 }
 
@@ -412,7 +411,6 @@ uint8_t *rela_write(struct section *section) {
 		int sym_idx = 0;
 		for (unsigned j = 0; j < symbol_size; j++) {
 			if (symbols[j].name && strcmp(symbols[j].name, section->relas[i].name) == 0) {
-				printf("HERE!!! %s\n", symbols[j].name);
 				sym_idx = symbols[j].idx;
 				break;
 			}
