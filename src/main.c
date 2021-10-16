@@ -61,7 +61,7 @@ void write_escaped_string(const char *str) {
 			buffer[i] = *str;
 		}
 	}
-	buffer[i] = '\0';
+	buffer[i++] = '\0';
 
 	elf_write(buffer, i);
 }
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 
 			if (reloc_name) {
 				int type = reloc_relative ? R_X86_64_PC32 : R_X86_64_32S;
-				elf_symbol_relocate_here(reloc_name, reloc_offset, reloc_relative);
+				elf_symbol_relocate_here(reloc_name, reloc_offset, type);
 			}
 
 			elf_write(output, len);

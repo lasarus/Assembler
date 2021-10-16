@@ -158,8 +158,10 @@ void elf_symbol_relocate_here(const char *name, int64_t offset, int type) {
 									current_section->relas);
 
 	int idx = find_symbol(name);
-	if (idx == -1)
+	if (idx == -1) {
 		idx = elf_new_symbol(name);
+		symbols[idx].section = -1;
+	}
 
 	rela->symb_idx = idx;
 	rela->offset = current_section->size + offset;
