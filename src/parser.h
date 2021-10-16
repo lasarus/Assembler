@@ -48,7 +48,10 @@ struct operand {
 			uint64_t offset;
 		} sib;
 
-		uint64_t imm;
+		struct {
+			char *str;
+			uint64_t value;
+		} imm;
 	};
 };
 
@@ -63,9 +66,17 @@ struct label {
 
 struct directive {
 	enum {
-		DIR_SECTION
+		DIR_SECTION,
+		DIR_GLOBAL,
+		DIR_STRING,
+		DIR_ZERO,
+		DIR_QUAD
 	} type;
-	// Add operands here.
+
+	union {
+		const char *name;
+		uint64_t immediate;
+	};
 };
 
 void parse_init(const char *path);

@@ -132,10 +132,11 @@ void encode_sib(struct operand *o, int *rex_b, int *rex_x, int *modrm_mod, int *
 
 //struct encoding cmp2 = {0x83, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM8}}};
 
-void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, struct operand ops[4]) {
+void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, struct operand ops[4], char **reloc_name, int *reloc_offset) {
 	int has_imm8 = 0, has_imm16 = 0, has_imm32 = 0, has_imm64 = 0;
 	uint64_t imm = 0;
-	//uint8_t imm8 = 0;
+	char *imm_name = NULL;
+	*reloc_offset = 0;
 
 	int has_rex = encoding->rexw || encoding->rex;
 	int rex_b = 0;
@@ -170,22 +171,26 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 		switch (oe->type) {
 		case OE_IMM8:
 			has_imm8 = 1;
-			imm = o->imm;
+			imm = o->imm.value;
+			imm_name = o->imm.str;
 			break;
 
 		case OE_IMM16:
 			has_imm16 = 1;
-			imm = o->imm;
+			imm = o->imm.value;
+			imm_name = o->imm.str;
 			break;
 
 		case OE_IMM32:
 			has_imm32 = 1;
-			imm = o->imm;
+			imm = o->imm.value;
+			imm_name = o->imm.str;
 			break;
 
 		case OE_IMM64:
 			has_imm64 = 1;
-			imm = o->imm;
+			imm = o->imm.value;
+			imm_name = o->imm.str;
 			break;
 
 		case OE_MODRM_RM:
@@ -303,19 +308,25 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 
 	if (has_imm8) {
 		output[idx] = (uint8_t)imm;
+		*reloc_offset = idx;
 		idx++;
 	} else if (has_imm16) {
 		*(uint16_t *)(output + idx) = imm;
+		*reloc_offset = idx;
 		idx += 2;
 	} else if (has_imm32) {
 		*(uint32_t *)(output + idx) = imm;
+		*reloc_offset = idx;
 		idx += 4;
 	} else if (has_imm64) {
 		*(uint64_t *)(output + idx) = imm;
+		*reloc_offset = idx;
 		idx += 8;
 	}
 
 	*len = idx;
+
+	*reloc_name = imm_name;
 }
 
 int does_match(struct operand *o, struct operand_accepts *oa) {
@@ -358,23 +369,29 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 		break;
 
 	case ACC_IMM8_S: {
-		long s = o->imm;
+		long s = o->imm.value;
 		if (o->type != O_IMM)
 			return 0;
 		if (s < INT8_MIN || s > INT8_MAX)
 			return 0;
+
+		if (o->imm.str)
+			return 0;
 	} break;
 
 	case ACC_IMM16_S: {
-		long s = o->imm;
+		long s = o->imm.value;
 		if (o->type != O_IMM)
 			return 0;
 		if (s < INT16_MIN || s > INT16_MAX)
 			return 0;
+
+		if (o->imm.str)
+			return 0;
 	} break;
 
 	case ACC_IMM32_S: {
-		long s = o->imm;
+		long s = o->imm.value;
 		if (o->type != O_IMM)
 			return 0;
 		if (s < INT32_MIN || s > INT32_MAX)
@@ -384,7 +401,7 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 	case ACC_IMM32_U: {
 		if (o->type != O_IMM)
 			return 0;
-		if (o->imm > UINT32_MAX)
+		if (o->imm.value > UINT32_MAX)
 			return 0;
 	} break;
 
@@ -411,9 +428,11 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 	return 1;
 }
 
-void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4]) {
+void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4], char **reloc_name, int *reloc_offset) {
 	int best_len = 16;
 	uint8_t best_output[15] = { 0 };
+	char *best_name = NULL;
+	int best_offset = 0;
 	// TODO: Just order the instructions in such a way that we can just take the first one that appears.
 	for (unsigned i = 0; i < sizeof encodings / sizeof *encodings; i++) {
 		struct encoding *encoding = encodings + i;
@@ -438,11 +457,15 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 		//printf("Matched %d\n", i);
 		uint8_t current_output[15];
 		int current_len;
-		assemble_encoding(current_output, &current_len, encoding, ops);
+		char *current_reloc_name = NULL;
+		int current_reloc_offset = 0;
+		assemble_encoding(current_output, &current_len, encoding, ops, &current_reloc_name, &current_reloc_offset);
 
 		if (current_len < best_len) {
 			memcpy(best_output, current_output, sizeof (best_output));
 			best_len = current_len;
+			best_name = current_reloc_name;
+			best_offset = current_reloc_offset;
 		}
 	}
 
@@ -453,4 +476,6 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 
 	*len = best_len;
 	memcpy(output, best_output, sizeof (best_output));
+	*reloc_name = best_name;
+	*reloc_offset = best_offset;
 }

@@ -7,6 +7,6 @@
 
 #include <stdint.h>
 
-void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4]);
+void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4], char **reloc_name, int *reloc_offset);
 
 #endif

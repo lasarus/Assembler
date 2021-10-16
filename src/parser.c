@@ -13,7 +13,7 @@
 static char input[2];
 static FILE *fp = NULL;
 
-static int line = 0;
+static int line = 1;
 
 static void input_next(void) {
 	input[0] = input[1];
@@ -45,7 +45,7 @@ int is_alpha(char c) {
 }
 
 int is_identifier(char c) {
-	return (c == '_' || is_alpha(c));
+	return (c == '_' || is_alpha(c) || c == '.');
 }
 
 int is_digit(char c) {
@@ -368,6 +368,22 @@ int input_get_immediate_identifier(char *buffer) {
 	return 1;
 }
 
+int input_get_string(char *buffer) {
+	if (input[0] != '"')
+		return 0;
+
+	input_next();
+	while (input[0] != '"') {
+		*(buffer++) = input[0];
+		input_next();
+	}
+
+	*buffer = '\0';
+	input_next();
+
+	return 1;
+}
+
 // Tokenizer.
 struct token {
 	enum token_type {
@@ -380,8 +396,10 @@ struct token {
 		T_IMMEDIATE,
 		T_IMMEDIATE_IDENTIFIER,
 		T_COMMA,
+		T_COLON,
 		T_LEFT_PARENTHESIS,
-		T_RIGHT_PARENTHESIS
+		T_RIGHT_PARENTHESIS,
+		T_STRING
 	} type;
 
 	union {
@@ -424,12 +442,20 @@ void token_next(void) {
 	} else if (input[0] == ',') {
 		tokens[1].type = T_COMMA;
 		input_next();
+	} else if (input[0] == ':') {
+		tokens[1].type = T_COLON;
+		input_next();
 	} else if (input[0] == '\n') {
 		tokens[1].type = T_NEWLINE;
 		input_next();
 	} else if (input_get_identifier(tok_buffer)) {
 		tokens[1] = (struct token) {
 			.type = T_IDENTIFIER,
+			.identifier = strdup(tok_buffer)
+		};
+	} else if (input_get_string(tok_buffer)) {
+		tokens[1] = (struct token) {
+			.type = T_STRING,
 			.identifier = strdup(tok_buffer)
 		};
 	} else if (input_get_register(&tokens[1].register_.reg,
@@ -555,13 +581,15 @@ static int parse_operand(struct operand *operand) {
 
 	case T_IMMEDIATE:
 		operand->type = O_IMM;
-		operand->imm = tokens[0].immediate;
+		operand->imm.value = tokens[0].immediate;
+		operand->imm.str = NULL;
 		token_next();
 		return 1;
 
 	case T_IMMEDIATE_IDENTIFIER:
 		operand->type = O_IMM;
-		operand->imm = 0; // TODO: linking.
+		operand->imm.value = 0;
+		operand->imm.str = tokens[0].identifier;
 		token_next();
 		return 1;
 
@@ -590,8 +618,72 @@ int parse_instruction(struct instruction *instruction) {
 	return 1;
 }
 
-int parse_label(struct label *label);
-int parse_directive(struct directive *directive);
+int parse_label(struct label *label) {
+	if (tokens[0].type != T_IDENTIFIER ||
+		tokens[1].type != T_COLON)
+		return 0;
+
+	label->name = tokens[0].identifier;
+	token_next();
+	token_next();
+
+	return 1;
+}
+
+int parse_directive(struct directive *directive) {
+	if (tokens[0].type != T_IDENTIFIER)
+		return 0;
+
+	char *name = tokens[0].identifier;
+	if (strcmp(name, ".section") == 0) {
+		token_next();
+		if (tokens[0].type != T_IDENTIFIER)
+			ERROR("Expected identifer on line %d", tokens[0].line);
+		directive->type = DIR_SECTION;
+		directive->name = tokens[0].identifier;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	} else if (strcmp(name, ".global") == 0) {
+		token_next();
+		if (tokens[0].type != T_IDENTIFIER)
+			ERROR("Expected identifer on line %d", tokens[0].line);
+		directive->type = DIR_GLOBAL;
+		directive->name = tokens[0].identifier;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	} else if (strcmp(name, ".string") == 0) {
+		token_next();
+		if (tokens[0].type != T_STRING)
+			ERROR("Expected string on line %d", tokens[0].line);
+		directive->type = DIR_STRING;
+		directive->name = tokens[0].identifier;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	} else if (strcmp(name, ".zero") == 0) {
+		token_next();
+		if (tokens[0].type != T_NUMBER)
+			ERROR("Expected number on line %d", tokens[0].line);
+		directive->type = DIR_ZERO;
+		directive->immediate = tokens[0].immediate;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	} else if (strcmp(name, ".quad") == 0) {
+		token_next();
+		if (tokens[0].type != T_NUMBER)
+			ERROR("Expected number on line %d", tokens[0].line);
+		directive->type = DIR_QUAD;
+		directive->immediate = tokens[0].immediate;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	}
+
+	return 0;
+}
 
 int parse_is_eof(void) {
 	return token_accept(T_EOF);

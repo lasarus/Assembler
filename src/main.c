@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "encoder.h"
+#include "elf.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,24 +35,59 @@ int main(int argc, char **argv) {
 
 	parse_init(input);
 
+	elf_init();
 	FILE *output_file = fopen(output, "wb");
 	for (;;) {
 		struct instruction instruction;
-		if (parse_instruction(&instruction)) {
+		struct directive directive;
+		struct label label;
+		if (parse_label(&label)) {
+			elf_symbol_set_here(label.name, 0);
+		} else if (parse_directive(&directive)) {
+			switch (directive.type) {
+			case DIR_GLOBAL:
+				elf_symbol_set_global(directive.name);
+				break;
+			case DIR_STRING:
+				// TODO: Escape characters
+				elf_write((uint8_t *)directive.name, strlen(directive.name) + 1);
+				break;
+			case DIR_SECTION:
+				elf_set_section(directive.name);
+				break;
+			case DIR_ZERO:
+				elf_write_zero(directive.immediate);
+				break;
+			case DIR_QUAD:
+				elf_write((uint8_t *)&directive.immediate, 8);
+				break;
+			default:
+				NOTIMP();
+			}
+		} else if (parse_instruction(&instruction)) {
 			flip_order(instruction.operands);
 
 			uint8_t output[15] = { 0 };
 			int len;
+			char *reloc_name = NULL;
+			int reloc_offset = 0;
 			assemble_instruction(output, &len, instruction.mnemonic,
-								 instruction.operands);
+								 instruction.operands,
+								 &reloc_name, &reloc_offset);
 
 			if (len <= 0) {
 				parse_send_error("no match for instruction");
-				ERROR("Shoud not be here");
+				ERROR("Couldn't encode instruction.");
 			}
 
 			if (fwrite(output, len, 1, output_file) != 1)
 				ERROR("Can't write");
+
+			if (reloc_name) {
+				elf_symbol_relocate_here(reloc_name, reloc_offset);
+			}
+
+			elf_write(output, len);
 		} else if (parse_is_eof()) {
 			break;
 		} else {
@@ -62,4 +98,6 @@ int main(int argc, char **argv) {
 	fclose(output_file);
 
 	parse_close();
+
+	elf_finish("output.elf");
 }
