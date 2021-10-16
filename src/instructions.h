@@ -18,6 +18,9 @@ struct operand_encoding {
 		OE_IMM16,
 		OE_IMM32,
 		OE_IMM64,
+		OE_REL8,
+		OE_REL16,
+		OE_REL32,
 		OE_OPEXT
 	} type;
 
@@ -38,6 +41,9 @@ struct operand_accepts {
 		ACC_IMM16_U,
 		ACC_IMM32_U,
 		ACC_IMM64,
+		ACC_REL8,
+		ACC_REL16,
+		ACC_REL32,
 		ACC_MODRM
 	} type;
 
@@ -53,6 +59,9 @@ struct operand_accepts {
 #define A_IMM8 {.type = ACC_IMM8 }
 #define A_IMM32 {.type = ACC_IMM32_U }
 #define A_IMM64 {.type = ACC_IMM64 }
+#define A_REL8 {.type = ACC_REL8 }
+#define A_REL16 {.type = ACC_REL16 }
+#define A_REL32 {.type = ACC_REL32 }
 #define A_REG(SIZE) {.type = ACC_REG, .reg.size = SIZE }
 #define A_MODRM(SIZE) {.type = ACC_MODRM, .reg.size = SIZE }
 #define A_REG_STAR(SIZE) {.type = ACC_REG_STAR, .reg.size = SIZE }
@@ -114,6 +123,9 @@ struct encoding encodings[] = {
 	{ "leave", .opcode = 0xc9 },
 	{ "ret", .opcode = 0xc3 },
 	{ "ud2", .opcode = 0x0f, .op2 = 0x0b },
+	
+	{"jmp", 0xe9, .operand_encoding = {{OE_REL32}}, .operand_accepts = {A_REL32}},
+	{"je", 0x0f, .op2 = 0x84, .operand_encoding = {{OE_REL32}}, .operand_accepts = {A_REL32}},
 
 	{"cmpl", 0x39, .slash_r = 1, .operand_encoding = MR, .operand_accepts = {A_REG(4), A_REG(4)}},
 	{"cmpq", 0x39, .rex = 1, .rexw = 1, .slash_r = 1, .operand_encoding = MR, .operand_accepts = {A_MODRM(8), A_REG(8)}},

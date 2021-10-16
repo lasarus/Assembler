@@ -170,16 +170,17 @@ void elf_write_zero(int len) {
 		   0, len);
 }
 
-void elf_symbol_relocate_here(const char *name, int64_t offset) {
+void elf_symbol_relocate_here(const char *name, int64_t offset, int relative) {
 	struct rela *rela = &ADD_ELEMENT(current_section->rela_size,
 									current_section->rela_cap,
 									current_section->relas);
 
 	rela->name = strdup(name);
 	rela->offset = current_section->size + offset;
-	rela->type = R_X86_64_32S;
-	//rela->r_info = 
-	// NOTIMP();
+	if (relative)
+		rela->type = R_X86_64_PC32;
+	else
+		rela->type = R_X86_64_32S;
 }
 
 void elf_symbol_set_here(const char *name, int64_t offset) {

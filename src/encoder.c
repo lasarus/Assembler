@@ -132,11 +132,12 @@ void encode_sib(struct operand *o, int *rex_b, int *rex_x, int *modrm_mod, int *
 
 //struct encoding cmp2 = {0x83, .operand_encoding = {{OE_MODRM_RM}, {OE_IMM8}}};
 
-void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, struct operand ops[4], char **reloc_name, int *reloc_offset) {
+void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, struct operand ops[4], char **reloc_name, int *reloc_offset, int *reloc_relative) {
 	int has_imm8 = 0, has_imm16 = 0, has_imm32 = 0, has_imm64 = 0;
 	uint64_t imm = 0;
 	char *imm_name = NULL;
 	*reloc_offset = 0;
+	*reloc_relative = 0;
 
 	int has_rex = encoding->rexw || encoding->rex;
 	int rex_b = 0;
@@ -157,6 +158,9 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 	int sib_base = 0;
 
 	uint8_t op_ext = 0;
+
+	int has_rel32 = 0;
+	uint32_t rel = 0;
 
 	for (int i = 0, j = 0; i < 4 && j < 4; i++, j++) {
 		struct operand *o = ops + i;
@@ -241,6 +245,12 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 		case OE_EMPTY:
 			break;
 
+		case OE_REL32:
+			has_rel32 = 1;
+			rel = o->imm.value;
+			imm_name = o->imm.str;
+			break;
+
 		default:
 			ERROR("Not imp: %d, %d", oe->type, i);
 		}
@@ -322,6 +332,13 @@ void assemble_encoding(uint8_t *output, int *len, struct encoding *encoding, str
 		*(uint64_t *)(output + idx) = imm;
 		*reloc_offset = idx;
 		idx += 8;
+	}
+
+	if (has_rel32) {
+		*(uint32_t *)(output + idx) = rel;
+		*reloc_offset = idx;
+		*reloc_relative = 1;
+		idx += 4;
 	}
 
 	*len = idx;
@@ -421,6 +438,11 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 			return 0;
 		break;
 
+	case ACC_REL32:
+		if (o->type != O_IMM_ABSOLUTE)
+			return 0;
+		break;
+
 	default:
 		ERROR("Not imp: %d\n", oa->type);
 	}
@@ -428,11 +450,12 @@ int does_match(struct operand *o, struct operand_accepts *oa) {
 	return 1;
 }
 
-void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4], char **reloc_name, int *reloc_offset) {
+void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struct operand ops[4], char **reloc_name, int *reloc_offset, int *reloc_relative) {
 	int best_len = 16;
 	uint8_t best_output[15] = { 0 };
 	char *best_name = NULL;
 	int best_offset = 0;
+	int best_relative = 0;
 	// TODO: Just order the instructions in such a way that we can just take the first one that appears.
 	for (unsigned i = 0; i < sizeof encodings / sizeof *encodings; i++) {
 		struct encoding *encoding = encodings + i;
@@ -459,13 +482,15 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 		int current_len;
 		char *current_reloc_name = NULL;
 		int current_reloc_offset = 0;
-		assemble_encoding(current_output, &current_len, encoding, ops, &current_reloc_name, &current_reloc_offset);
+		int current_reloc_relative = 0;
+		assemble_encoding(current_output, &current_len, encoding, ops, &current_reloc_name, &current_reloc_offset, &current_reloc_relative);
 
 		if (current_len < best_len) {
 			memcpy(best_output, current_output, sizeof (best_output));
 			best_len = current_len;
 			best_name = current_reloc_name;
 			best_offset = current_reloc_offset;
+			best_relative = current_reloc_relative;
 		}
 	}
 
@@ -478,4 +503,5 @@ void assemble_instruction(uint8_t *output, int *len, const char *mnemonic, struc
 	memcpy(output, best_output, sizeof (best_output));
 	*reloc_name = best_name;
 	*reloc_offset = best_offset;
+	*reloc_relative = best_relative;
 }

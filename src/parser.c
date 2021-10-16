@@ -609,6 +609,13 @@ static int parse_operand(struct operand *operand) {
 		token_next();
 		return 1;
 
+	case T_IDENTIFIER:
+		operand->type = O_IMM_ABSOLUTE;
+		operand->imm.value = 0;
+		operand->imm.str = tokens[0].identifier;
+		token_next();
+		return 1;
+
 	default:
 		return parse_sib(operand);
 	}

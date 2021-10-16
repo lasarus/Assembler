@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
 	parse_init(input);
 
 	elf_init();
-	FILE *output_file = fopen(output, "wb");
 	for (;;) {
 		struct instruction instruction;
 		struct directive directive;
@@ -71,20 +70,18 @@ int main(int argc, char **argv) {
 			int len;
 			char *reloc_name = NULL;
 			int reloc_offset = 0;
+			int reloc_relative = 0;
 			assemble_instruction(output, &len, instruction.mnemonic,
 								 instruction.operands,
-								 &reloc_name, &reloc_offset);
+								 &reloc_name, &reloc_offset, &reloc_relative);
 
 			if (len <= 0) {
 				parse_send_error("no match for instruction");
 				ERROR("Couldn't encode instruction.");
 			}
 
-			if (fwrite(output, len, 1, output_file) != 1)
-				ERROR("Can't write");
-
 			if (reloc_name) {
-				elf_symbol_relocate_here(reloc_name, reloc_offset);
+				elf_symbol_relocate_here(reloc_name, reloc_offset, reloc_relative);
 			}
 
 			elf_write(output, len);
@@ -95,9 +92,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	fclose(output_file);
-
 	parse_close();
 
-	elf_finish("output.elf");
+	elf_finish(output);
 }

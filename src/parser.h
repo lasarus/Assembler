@@ -32,6 +32,7 @@ struct operand {
 		O_REG,
 		O_REG_STAR,
 		O_IMM,
+		O_IMM_ABSOLUTE,
 		O_SIB
 	} type;
 
