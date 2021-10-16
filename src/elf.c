@@ -63,6 +63,7 @@ struct rela {
 	int symb_idx;
 	uint64_t offset;
 	uint64_t type;
+	uint64_t add;
 };
 
 struct section {
@@ -166,6 +167,11 @@ void elf_symbol_relocate_here(const char *name, int64_t offset, int type) {
 	rela->symb_idx = idx;
 	rela->offset = current_section->size + offset;
 	rela->type = type;
+	rela->add = 0;
+
+	if (type == R_X86_64_PC32) {
+		rela->add = -4;
+	}
 }
 
 void elf_symbol_set_here(const char *name, int64_t offset) {
@@ -405,7 +411,7 @@ uint8_t *rela_write(struct section *section) {
 		*(uint64_t *)(ent_addr) = section->relas[i].offset; // r_offset
 		uint64_t r_info = ((uint64_t)sym_idx << 32) + section->relas[i].type;
 		*(uint64_t *)(ent_addr + 8) = r_info; // r_info
-		*(uint64_t *)(ent_addr + 16) = 0; // r_addend
+		*(uint64_t *)(ent_addr + 16) = section->relas[i].add; // r_addend
 	}
 
 	return buffer;
