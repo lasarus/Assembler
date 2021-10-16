@@ -160,7 +160,7 @@ void elf_symbol_relocate_here(const char *name, int64_t offset, int type) {
 	int idx = find_symbol(name);
 	if (idx == -1) {
 		idx = elf_new_symbol(name);
-		symbols[idx].section = -1;
+		//symbols[idx].section = -1;
 	}
 
 	rela->symb_idx = idx;
@@ -381,7 +381,10 @@ uint8_t *symbol_table_write(int *n_local) {
 		*(uint32_t *)(ent_addr + 0) = symbols[i].string_idx; // st_name
 		*(uint8_t *)(ent_addr + 4) = STB_GLOBAL << 4 | symbols[i].type; // st_info
 		*(uint8_t *)(ent_addr + 5) = 0; // st_other
-		*(uint16_t *)(ent_addr + 6) = sections[symbols[i].section].sh_idx; // st_shndx
+		if (symbols[i].section != -1)
+			*(uint16_t *)(ent_addr + 6) = sections[symbols[i].section].sh_idx; // st_shndx
+		else
+			*(uint16_t *)(ent_addr + 6) = 0; // st_shndx
 		*(uint64_t *)(ent_addr + 8) = symbols[i].value; // st_value
 		*(uint64_t *)(ent_addr + 16) = 0; // st_size
 
