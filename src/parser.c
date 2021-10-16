@@ -416,9 +416,24 @@ struct token {
 
 static struct token tokens[2];
 
-void token_flush_whitespace(void) {
+int token_flush_whitespace(void) {
+	if (input[0] == '\n' || !isspace(input[0]))
+		return 0;
+
 	while (input[0] != '\n' && isspace(input[0]))
 		input_next();
+
+	return 1;
+}
+
+int token_flush_comment(void) {
+	if (input[0] != '#')
+		return 0;
+
+	while (input[0] != '\n' && input[0])
+		input_next();
+
+	return 1;
 }
 
 void token_next(void) {
@@ -426,7 +441,8 @@ void token_next(void) {
 
 	tokens[1] = (struct token) { 0 };
 
-	token_flush_whitespace();
+	while (token_flush_whitespace() ||
+		   token_flush_comment());
 
 	int token_start_line = line;
 	static char tok_buffer[256] = { 0 };
