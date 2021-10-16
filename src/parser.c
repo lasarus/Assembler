@@ -14,6 +14,7 @@ static char input[2];
 static FILE *fp = NULL;
 
 static int line = 1;
+static const char *file = NULL;
 
 static void input_next(void) {
 	input[0] = input[1];
@@ -374,6 +375,11 @@ int input_get_string(char *buffer) {
 
 	input_next();
 	while (input[0] != '"') {
+		if (input[0] == '\\' && input[1] == '"') {
+			*(buffer++) = input[0];
+			input_next();
+		}
+
 		*(buffer++) = input[0];
 		input_next();
 	}
@@ -513,12 +519,14 @@ void token_expect(enum token_type type) {
 		if (tokens[0].type == T_IDENTIFIER) {
 			printf("%s\n", tokens[0].identifier);
 		}
-		ERROR("Expected %d, but got %d on line %d", type, tokens[0].type, tokens[0].line);
+
+		ERROR("Expected %d, but got %d on line %d, file %s", type, tokens[0].type, tokens[0].line, file);
 	}
 }
 
 // Parser construction/destruction.
 void parse_init(const char *path) {
+	file = path;
 	fp = fopen(path, "r");
 	input_next();
 	input_next();
@@ -697,8 +705,17 @@ int parse_directive(struct directive *directive) {
 	} else if (strcmp(name, ".quad") == 0) {
 		token_next();
 		if (tokens[0].type != T_NUMBER)
-			ERROR("Expected number on line %d", tokens[0].line);
+			ERROR("Expected number on line %d, file %s", tokens[0].line, file);
 		directive->type = DIR_QUAD;
+		directive->immediate = tokens[0].immediate;
+		token_next();
+		token_expect(T_NEWLINE);
+		return 1;
+	} else if (strcmp(name, ".byte") == 0) {
+		token_next();
+		if (tokens[0].type != T_NUMBER)
+			ERROR("Expected number on line %d, file %s", tokens[0].line, file);
+		directive->type = DIR_BYTE;
 		directive->immediate = tokens[0].immediate;
 		token_next();
 		token_expect(T_NEWLINE);

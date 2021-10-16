@@ -71,7 +71,8 @@ struct directive {
 		DIR_GLOBAL,
 		DIR_STRING,
 		DIR_ZERO,
-		DIR_QUAD
+		DIR_QUAD,
+		DIR_BYTE
 	} type;
 
 	union {

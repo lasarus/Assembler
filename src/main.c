@@ -26,6 +26,45 @@ void flip_order(struct operand ops[4]) {
 	memcpy(ops, out, sizeof out);
 }
 
+int get_escape(char nc) {
+	switch (nc) {
+	case 'n':
+		return '\n';
+	case '\'':
+		return '\'';
+	case '\"':
+		return '\"';
+	case 't':
+		return '\t';
+	case '0':
+		return '\0';
+	case '\\':
+		return '\\';
+
+	default:
+		ERROR("Invalid escape sequence \\%c", nc);
+	}
+}
+
+void write_escaped_string(const char *str) {
+	uint8_t buffer[256] = { 0 };
+	if (strlen(str) > 255)
+		NOTIMP();
+
+	int i = 0;
+	for (; *str; str++, i++) {
+		if (*str == '\\') {
+			str++;
+			buffer[i] = get_escape(*str);
+		} else {
+			buffer[i] = *str;
+		}
+	}
+	buffer[i] = '\0';
+
+	elf_write(buffer, i);
+}
+
 int main(int argc, char **argv) {
 	const char *input = NULL, *output = NULL;
 	if (argc != 3)
@@ -48,8 +87,8 @@ int main(int argc, char **argv) {
 				elf_symbol_set_global(directive.name);
 				break;
 			case DIR_STRING:
+				write_escaped_string(directive.name);
 				// TODO: Escape characters
-				elf_write((uint8_t *)directive.name, strlen(directive.name) + 1);
 				break;
 			case DIR_SECTION:
 				elf_set_section(directive.name);
@@ -59,6 +98,9 @@ int main(int argc, char **argv) {
 				break;
 			case DIR_QUAD:
 				elf_write((uint8_t *)&directive.immediate, 8);
+				break;
+			case DIR_BYTE:
+				elf_write((uint8_t *)&directive.immediate, 1);
 				break;
 			default:
 				NOTIMP();

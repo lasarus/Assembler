@@ -78,7 +78,7 @@ int register_string(const char *str) {
 }
 
 struct rela {
-	char *name;
+	int symb_idx;
 	uint64_t offset;
 	uint64_t type;
 };
@@ -118,7 +118,7 @@ static int find_symbol(const char *name) {
 }
 
 int elf_new_symbol(const char *name) {
-	struct symbol symb = { .section = -1 };
+	struct symbol symb = { .section = -1, .global = -1 };
 	if (name) {
 		symb.string_idx = register_string(name);
 		symb.name = strdup(name);
@@ -175,7 +175,11 @@ void elf_symbol_relocate_here(const char *name, int64_t offset, int relative) {
 									current_section->rela_cap,
 									current_section->relas);
 
-	rela->name = strdup(name);
+	int idx = find_symbol(name);
+	if (idx == -1)
+		idx = elf_new_symbol(name);
+
+	rela->symb_idx = idx;
 	rela->offset = current_section->size + offset;
 	if (relative)
 		rela->type = R_X86_64_PC32;
@@ -190,6 +194,9 @@ void elf_symbol_set_here(const char *name, int64_t offset) {
 
 	symbols[idx].section = current_section->idx;
 	symbols[idx].value = current_section->size + offset;
+
+	if (symbols[idx].global == -1)
+		symbols[idx].global = 0;
 }
 
 void elf_symbol_set_global(const char *name) {
@@ -409,16 +416,7 @@ uint8_t *rela_write(struct section *section) {
 	for (unsigned i = 0; i < section->rela_size; i++) {
 		uint8_t *ent_addr = buffer + i * 24;
 
-		int sym_idx = 0;
-		for (unsigned j = 0; j < symbol_size; j++) {
-			if (symbols[j].name && strcmp(symbols[j].name, section->relas[i].name) == 0) {
-				sym_idx = symbols[j].idx;
-				break;
-			}
-		}
-
-		if (sym_idx == 0)
-			ERROR("Could not find symbol %s", section->relas[i].name);
+		int sym_idx = symbols[section->relas[i].symb_idx].idx;
 
 		*(uint64_t *)(ent_addr) = section->relas[i].offset; // r_offset
 		uint64_t r_info = ((uint64_t)sym_idx << 32) + section->relas[i].type;
