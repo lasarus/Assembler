@@ -77,7 +77,11 @@ struct directive {
 
 	union {
 		const char *name;
-		uint64_t immediate;
+
+		struct {
+			uint64_t value;
+			char *str;
+		} immediate;
 	};
 };
 

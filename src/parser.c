@@ -695,28 +695,46 @@ int parse_directive(struct directive *directive) {
 		return 1;
 	} else if (strcmp(name, ".zero") == 0) {
 		token_next();
-		if (tokens[0].type != T_NUMBER)
+		directive->immediate.value = 0;
+		directive->immediate.str = 0;
+		if (tokens[0].type == T_NUMBER) {
+			directive->immediate.value = tokens[0].immediate;
+		} else if (tokens[0].type == T_IDENTIFIER) {
+			directive->immediate.str = tokens[0].identifier;
+		} else {
 			ERROR("Expected number on line %d", tokens[0].line);
+		}
 		directive->type = DIR_ZERO;
-		directive->immediate = tokens[0].immediate;
 		token_next();
 		token_expect(T_NEWLINE);
 		return 1;
 	} else if (strcmp(name, ".quad") == 0) {
 		token_next();
-		if (tokens[0].type != T_NUMBER)
-			ERROR("Expected number on line %d, file %s", tokens[0].line, file);
+		directive->immediate.value = 0;
+		directive->immediate.str = 0;
+		if (tokens[0].type == T_NUMBER) {
+			directive->immediate.value = tokens[0].immediate;
+		} else if (tokens[0].type == T_IDENTIFIER) {
+			directive->immediate.str = tokens[0].identifier;
+		} else {
+			ERROR("Expected number on line %d", tokens[0].line);
+		}
 		directive->type = DIR_QUAD;
-		directive->immediate = tokens[0].immediate;
 		token_next();
 		token_expect(T_NEWLINE);
 		return 1;
 	} else if (strcmp(name, ".byte") == 0) {
 		token_next();
-		if (tokens[0].type != T_NUMBER)
-			ERROR("Expected number on line %d, file %s", tokens[0].line, file);
+		directive->immediate.value = 0;
+		directive->immediate.str = 0;
+		if (tokens[0].type == T_NUMBER) {
+			directive->immediate.value = tokens[0].immediate;
+		} else if (tokens[0].type == T_IDENTIFIER) {
+			directive->immediate.str = tokens[0].identifier;
+		} else {
+			ERROR("Expected number on line %d", tokens[0].line);
+		}
 		directive->type = DIR_BYTE;
-		directive->immediate = tokens[0].immediate;
 		token_next();
 		token_expect(T_NEWLINE);
 		return 1;

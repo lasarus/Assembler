@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define ERROR(STR, ...) do { printf("Error on line %d file %s: \"" STR "\"\n", __LINE__, __FILE__, ##__VA_ARGS__); exit(1); } while(0)
 #define NOTIMP() ERROR("Not implemented");
@@ -94,13 +95,18 @@ int main(int argc, char **argv) {
 				elf_set_section(directive.name);
 				break;
 			case DIR_ZERO:
-				elf_write_zero(directive.immediate);
+				assert(directive.immediate.str == NULL);
+				elf_write_zero(directive.immediate.value);
 				break;
 			case DIR_QUAD:
-				elf_write((uint8_t *)&directive.immediate, 8);
+				if (directive.immediate.str)
+					elf_symbol_relocate_here(directive.immediate.str, 0, R_X86_64_64);
+				elf_write((uint8_t *)&directive.immediate.value, 8);
 				break;
 			case DIR_BYTE:
-				elf_write((uint8_t *)&directive.immediate, 1);
+				if (directive.immediate.str)
+					NOTIMP();
+				elf_write((uint8_t *)&directive.immediate.value, 1);
 				break;
 			default:
 				NOTIMP();
@@ -123,6 +129,7 @@ int main(int argc, char **argv) {
 			}
 
 			if (reloc_name) {
+				int type = reloc_relative ? R_X86_64_PC32 : R_X86_64_32S;
 				elf_symbol_relocate_here(reloc_name, reloc_offset, reloc_relative);
 			}
 

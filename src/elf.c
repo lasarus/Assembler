@@ -23,24 +23,6 @@ enum {
 };
 
 enum {
-	R_X86_64_NONE = 0, /* No reloc */
-	R_X86_64_64 = 1, /* Direct 64 bit  */
-	R_X86_64_PC32 = 2, /* PC relative 32 bit signed */
-	R_X86_64_GOT32 = 3, /* 32 bit GOT entry */
-	R_X86_64_PLT32 = 4, /* 32 bit PLT address */
-	R_X86_64_COPY = 5, /* Copy symbol at runtime */
-	R_X86_64_GLOB_DAT = 6, /* Create GOT entry */
-	R_X86_64_JUMP_SLOT = 7, /* Create PLT entry */
-	R_X86_64_RELATIVE = 8, /* Adjust by program base */
-	R_X86_64_GOTPCREL = 9, /* 32 bit signed PC relative */
-	R_X86_64_32 = 10, /* Direct 32 bit zero extended */
-	R_X86_64_32S = 11, /* Direct 32 bit sign extended */
-	R_X86_64_16 = 12, /* Direct 16 bit zero extended */
-	R_X86_64_PC16 = 13, /* 16 bit sign extended pc relative */
-	R_X86_64_8 = 14, /* Direct 8 bit sign extended  */
-};
-
-enum {
 	SHF_WRITE = (1 << 0), /* Writable */
 	SHF_ALLOC = (1 << 1), /* Occupies memory during execution */
 	SHF_EXECINSTR = (1 << 2), /* Executable */
@@ -170,7 +152,7 @@ void elf_write_zero(int len) {
 		   0, len);
 }
 
-void elf_symbol_relocate_here(const char *name, int64_t offset, int relative) {
+void elf_symbol_relocate_here(const char *name, int64_t offset, int type) {
 	struct rela *rela = &ADD_ELEMENT(current_section->rela_size,
 									current_section->rela_cap,
 									current_section->relas);
@@ -181,10 +163,7 @@ void elf_symbol_relocate_here(const char *name, int64_t offset, int relative) {
 
 	rela->symb_idx = idx;
 	rela->offset = current_section->size + offset;
-	if (relative)
-		rela->type = R_X86_64_PC32;
-	else
-		rela->type = R_X86_64_32S;
+	rela->type = type;
 }
 
 void elf_symbol_set_here(const char *name, int64_t offset) {
