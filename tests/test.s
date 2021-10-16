@@ -1,5 +1,11 @@
 .global main
+.global puts
+msg:	
+	.string "Hello World!"
 main:
-	movq $10, %rax
+	xorq %rax, %rax
+	movq $msg, %rdi
+	movq $puts, %rbx
+	callq *%rbx
+	xorq %rax, %rax
 	ret
-

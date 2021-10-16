@@ -8,6 +8,53 @@
 #define ERROR(STR, ...) do { printf("Error on line %d file %s: \"" STR "\"\n", __LINE__, __FILE__, ##__VA_ARGS__); exit(1); } while(0)
 #define NOTIMP() ERROR("Not implemented");
 
+enum {
+	SHT_NULL = 0,
+	SHT_PROGBITS = 1,
+	SHT_SYMTAB = 2,
+	SHT_STRTAB = 3,
+	SHT_RELA = 4,
+	SHT_NOBITS = 8,
+};
+
+enum {
+	STB_LOCAL = 0,
+	STB_GLOBAL = 1,
+};
+
+enum {
+	R_X86_64_NONE = 0, /* No reloc */
+	R_X86_64_64 = 1, /* Direct 64 bit  */
+	R_X86_64_PC32 = 2, /* PC relative 32 bit signed */
+	R_X86_64_GOT32 = 3, /* 32 bit GOT entry */
+	R_X86_64_PLT32 = 4, /* 32 bit PLT address */
+	R_X86_64_COPY = 5, /* Copy symbol at runtime */
+	R_X86_64_GLOB_DAT = 6, /* Create GOT entry */
+	R_X86_64_JUMP_SLOT = 7, /* Create PLT entry */
+	R_X86_64_RELATIVE = 8, /* Adjust by program base */
+	R_X86_64_GOTPCREL = 9, /* 32 bit signed PC relative */
+	R_X86_64_32 = 10, /* Direct 32 bit zero extended */
+	R_X86_64_32S = 11, /* Direct 32 bit sign extended */
+	R_X86_64_16 = 12, /* Direct 16 bit zero extended */
+	R_X86_64_PC16 = 13, /* 16 bit sign extended pc relative */
+	R_X86_64_8 = 14, /* Direct 8 bit sign extended  */
+};
+
+enum {
+	SHF_WRITE = (1 << 0), /* Writable */
+	SHF_ALLOC = (1 << 1), /* Occupies memory during execution */
+	SHF_EXECINSTR = (1 << 2), /* Executable */
+	SHF_MERGE = (1 << 4), /* Might be merged */
+	SHF_STRINGS = (1 << 5), /* Contains nul-terminated strings */
+	SHF_INFO_LINK = (1 << 6), /* `sh_info' contains SHT index */
+	SHF_LINK_ORDER = (1 << 7) /* Preserve order after combining */
+};
+
+enum {
+	STT_NOTYPE = 0,
+	STT_SECTION = 3
+};
+
 static size_t shstring_size, shstring_cap;
 static char *shstrings = NULL;
 
@@ -30,6 +77,12 @@ int register_string(const char *str) {
 	return space - strings;
 }
 
+struct rela {
+	char *name;
+	uint64_t offset;
+	uint64_t type;
+};
+
 struct section {
 	const char *name;
 	int idx;
@@ -38,7 +91,43 @@ struct section {
 	size_t size, cap;
 	uint8_t *data;
 
+	size_t rela_size, rela_cap;
+	struct rela *relas;
 };
+
+struct symbol {
+	int string_idx; // gotten from register_string()
+	char *name;
+	uint64_t value;
+	uint64_t size;
+	int section;
+	int global;
+	int idx;
+
+	int type;
+};
+
+size_t symbol_size, symbol_cap;
+struct symbol *symbols;
+
+static int find_symbol(const char *name) {
+	for (unsigned i = 0; i < symbol_size; i++)
+		if (symbols[i].name && strcmp(symbols[i].name, name) == 0)
+			return i;
+	return -1;
+}
+
+int elf_new_symbol(const char *name) {
+	struct symbol symb = { .section = -1 };
+	if (name) {
+		symb.string_idx = register_string(name);
+		symb.name = strdup(name);
+	}
+
+	ADD_ELEMENT(symbol_size, symbol_cap, symbols) = symb;
+
+	return symbol_size - 1;
+}
 
 size_t section_size, section_cap;
 struct section *sections = NULL;
@@ -63,6 +152,12 @@ void elf_set_section(const char *section) {
 		.name = strdup(section),
 		.idx = section_size - 1,
 	};
+
+	int section_symb = elf_new_symbol(NULL);
+	symbols[section_symb].global = 0;
+	symbols[section_symb].section = current_section->idx;
+	symbols[section_symb].value = 0;
+	symbols[section_symb].type = STT_SECTION;
 }
 
 void elf_write(uint8_t *data, int len) {
@@ -75,45 +170,16 @@ void elf_write_zero(int len) {
 		   0, len);
 }
 
-struct symbol {
-	int string_idx; // gotten from register_string()
-	char *name;
-	uint64_t value;
-	uint64_t size;
-	int section;
-	int global;
-};
-
-size_t symbol_size, symbol_cap;
-struct symbol *symbols;
-
-static int find_symbol(const char *name) {
-	for (unsigned i = 0; i < symbol_size; i++)
-		if (strcmp(symbols[i].name, name) == 0)
-			return i;
-	return -1;
-}
-
-int elf_create_symbol(const char *name, int64_t offset) {
-	ADD_ELEMENT(symbol_size, symbol_cap, symbols) = (struct symbol) {
-		.name = strdup(name),
-		.string_idx = register_string(name)
-	};
-
-	return symbol_size - 1;
-}
-
-int elf_new_symbol(const char *name) {
-	ADD_ELEMENT(symbol_size, symbol_cap, symbols) = (struct symbol) {
-		.name = strdup(name),
-		.string_idx = register_string(name)
-	};
-
-	return symbol_size - 1;
-}
-
 void elf_symbol_relocate_here(const char *name, int64_t offset) {
-	NOTIMP();
+	struct rela *rela = &ADD_ELEMENT(current_section->rela_size,
+									current_section->rela_cap,
+									current_section->relas);
+
+	rela->name = strdup(name);
+	rela->offset = current_section->size + offset;
+	rela->type = R_X86_64_32S;
+	//rela->r_info = 
+	// NOTIMP();
 }
 
 void elf_symbol_set_here(const char *name, int64_t offset) {
@@ -175,20 +241,6 @@ void write_quad(uint64_t quad) {
 }
 
 #define SH_OFF 128
-
-enum {
-	SHT_NULL = 0,
-	SHT_PROGBITS = 1,
-	SHT_SYMTAB = 2,
-	SHT_STRTAB = 3,
-	SHT_RELA = 4,
-	SHT_NOBITS = 8,
-};
-
-enum {
-	STB_LOCAL = 0,
-	STB_GLOBAL = 1,
-};
 
 struct elf_section_header {
 	uint32_t sh_name, sh_type;
@@ -321,11 +373,16 @@ uint8_t *symbol_table_write(int *n_local) {
 		curr_entry++;
 		uint8_t *ent_addr = buffer + (curr_entry) * 24;
 		*(uint32_t *)(ent_addr + 0) = symbols[i].string_idx; // st_name
-		*(uint8_t *)(ent_addr + 4) = 0; // st_info
+		*(uint8_t *)(ent_addr + 4) = symbols[i].type; // st_info
 		*(uint8_t *)(ent_addr + 5) = 0; // st_other
-		*(uint16_t *)(ent_addr + 6) = sections[symbols[i].section].sh_idx; // st_shndx
+		if (symbols[i].section != -1)
+			*(uint16_t *)(ent_addr + 6) = sections[symbols[i].section].sh_idx; // st_shndx
+		else
+			*(uint16_t *)(ent_addr + 6) = 0; // st_shndx
 		*(uint64_t *)(ent_addr + 8) = symbols[i].value; // st_value
 		*(uint64_t *)(ent_addr + 16) = 0; // st_size
+
+		symbols[i].idx = curr_entry;
 	}
 
 	for (unsigned i = 0; i < symbol_size; i++) {
@@ -334,11 +391,40 @@ uint8_t *symbol_table_write(int *n_local) {
 		curr_entry++;
 		uint8_t *ent_addr = buffer + (curr_entry) * 24;
 		*(uint32_t *)(ent_addr + 0) = symbols[i].string_idx; // st_name
-		*(uint8_t *)(ent_addr + 4) = STB_GLOBAL << 4; // st_info
+		*(uint8_t *)(ent_addr + 4) = STB_GLOBAL << 4 | symbols[i].type; // st_info
 		*(uint8_t *)(ent_addr + 5) = 0; // st_other
 		*(uint16_t *)(ent_addr + 6) = sections[symbols[i].section].sh_idx; // st_shndx
 		*(uint64_t *)(ent_addr + 8) = symbols[i].value; // st_value
 		*(uint64_t *)(ent_addr + 16) = 0; // st_size
+
+		symbols[i].idx = curr_entry;
+	}
+
+	return buffer;
+}
+
+uint8_t *rela_write(struct section *section) {
+	uint8_t *buffer = calloc(section->rela_size, 24);
+
+	for (unsigned i = 0; i < section->rela_size; i++) {
+		uint8_t *ent_addr = buffer + i * 24;
+
+		int sym_idx = 0;
+		for (unsigned j = 0; j < symbol_size; j++) {
+			if (symbols[j].name && strcmp(symbols[j].name, section->relas[i].name) == 0) {
+				printf("HERE!!! %s\n", symbols[j].name);
+				sym_idx = symbols[j].idx;
+				break;
+			}
+		}
+
+		if (sym_idx == 0)
+			ERROR("Could not find symbol %s", section->relas[i].name);
+
+		*(uint64_t *)(ent_addr) = section->relas[i].offset; // r_offset
+		uint64_t r_info = ((uint64_t)sym_idx << 32) + section->relas[i].type;
+		*(uint64_t *)(ent_addr + 8) = r_info; // r_info
+		*(uint64_t *)(ent_addr + 16) = 0; // r_addend
 	}
 
 	return buffer;
@@ -354,21 +440,38 @@ void elf_finish(const char *path) {
 
 		elf_sections[id].size = section->size;
 		elf_sections[id].data = section->data;
+		elf_sections[id].header.sh_flags = SHF_ALLOC | SHF_EXECINSTR;
 
 		section->sh_idx = id;
 	}
 
 	int sym = elf_add_section(register_shstring(".symtab"), SHT_SYMTAB);
-
-	int strtab_section = elf_add_section(register_shstring(".strtab"), SHT_STRTAB);
-	int shstrtab_section = elf_add_section(register_shstring(".shstrtab"), SHT_STRTAB);
-
-	elf_sections[sym].header.sh_link = strtab_section;
 	elf_sections[sym].header.sh_entsize = 24;
 	elf_sections[sym].size = (symbol_size + 1) * 24;
 	int n_local_symb = 0;
 	elf_sections[sym].data = symbol_table_write(&n_local_symb);
 	elf_sections[sym].header.sh_info = n_local_symb;
+
+	for (unsigned i = 0; i < section_size; i++) {
+		struct section *section = sections + i;
+		if (!section->rela_size)
+			continue;
+
+		char buffer[256];
+		sprintf(buffer, ".rela%s", section->name);
+		int rela_id = elf_add_section(register_shstring(buffer), SHT_RELA);
+		elf_sections[rela_id].size = 24 * section->rela_size;
+		elf_sections[rela_id].data = rela_write(section);
+		elf_sections[rela_id].header.sh_link = sym;
+		elf_sections[rela_id].header.sh_info = section->sh_idx;
+		elf_sections[rela_id].header.sh_entsize = 24;
+		elf_sections[rela_id].header.sh_flags = SHF_INFO_LINK;
+	}
+
+	int strtab_section = elf_add_section(register_shstring(".strtab"), SHT_STRTAB);
+	int shstrtab_section = elf_add_section(register_shstring(".shstrtab"), SHT_STRTAB);
+
+	elf_sections[sym].header.sh_link = strtab_section;
 
 	elf_sections[shstrtab_section].size = shstring_size;
 	elf_sections[shstrtab_section].data = (uint8_t *)shstrings;
